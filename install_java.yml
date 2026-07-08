@@ -1,0 +1,23 @@
+---
+- name: Install Java on Ubuntu servers
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install OpenJDK 17
+      apt:
+        name: openjdk-17-jdk
+        state: present
+
+    - name: Verify Java installation
+      command: java -version
+      register: java_version
+      changed_when: false
+
+    - name: Display Java version
+      debug:
+        var: java_version.stderr_lines
