@@ -66,7 +66,7 @@ pipeline {
             }
             steps {
                 // Use the private key credential required to SSH into the *new* EC2 instance
-                sshagent(['my-ssh-key-id']) { 
+                sshagent(['agent-access']) { 
                     echo "Waiting for the new EC2 instance to boot..."
                     sleep 30 
                     
