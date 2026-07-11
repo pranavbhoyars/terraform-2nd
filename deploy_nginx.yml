@@ -1,0 +1,34 @@
+---
+- hosts: all
+  become: yes
+
+  vars:
+    aws_region: ap-southeast-2
+    ecr_repo: 123456789012.dkr.ecr.ap-southeast-2.amazonaws.com/nginx-app
+
+  tasks:
+
+    - name: Install AWS CLI
+      apt:
+        name: awscli
+        state: present
+
+    - name: Login to ECR
+      shell: |
+        aws ecr get-login-password --region {{ aws_region }} \
+        | docker login --username AWS --password-stdin {{ ecr_repo }}
+
+    - name: Pull Image
+      shell: |
+        docker pull {{ ecr_repo }}:latest
+
+    - name: Remove Existing Container
+      shell: |
+        docker rm -f nginx-app || true
+
+    - name: Run Container
+      shell: |
+        docker run -d \
+        --name nginx-app \
+        -p 80:80 \
+        {{ ecr_repo }}:latest
