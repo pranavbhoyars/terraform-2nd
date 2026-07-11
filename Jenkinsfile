@@ -37,6 +37,17 @@ stages {
             sh 'terraform validate'
         }
     }
+    stage('Debug') {
+    steps {
+        sh '''
+            whoami
+            pwd
+            env | grep AWS || true
+            ls -la ~/.aws || true
+            aws sts get-caller-identity || true
+        '''
+    }
+}
 
     stage('Terraform Plan') {
         when {
