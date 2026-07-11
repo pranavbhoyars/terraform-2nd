@@ -87,29 +87,20 @@ stages {
     }
 
     stage('Create Inventory') {
-        when {
-            expression { params.TF_ACTION == 'APPLY' }
-        }
-        steps {
-            script {
+    steps {
+        script {
+            writeFile(
+                file: 'inventory.ini',
+                text: "[web]\n${env.EC2_IP} ansible_user=ubuntu ansible_ssh_common_args='-o StrictHostKeyChecking=no'\n"
+            )
 
-                writeFile(
-                    file: 'inventory.ini',
-                    text: """[web]
-```
-
-${env.EC2_IP} ansible_user=ubuntu ansible_ssh_common_args='-o StrictHostKeyChecking=no'
-"""
-)
-
-
-                sh '''
-                    echo "===== INVENTORY ====="
-                    cat inventory.ini
-                '''
-            }
+            sh '''
+                echo "===== INVENTORY ====="
+                cat -n inventory.ini
+            '''
         }
     }
+}
 
    
     stage('Install Docker') {
