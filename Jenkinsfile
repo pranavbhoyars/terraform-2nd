@@ -110,20 +110,7 @@ ${env.EC2_IP} ansible_user=ubuntu ansible_ssh_common_args='-o StrictHostKeyCheck
         }
     }
 
-    stage('Test SSH Connectivity') {
-        when {
-            expression { params.TF_ACTION == 'APPLY' }
-        }
-        steps {
-            sshagent(['my-agent']) {
-                sh '''
-                    ansible all \
-                    -i inventory.ini \
-                    -m ping
-                '''
-            }
-        }
-    }
+  
 
     stage('Install Docker') {
         when {
@@ -131,11 +118,11 @@ ${env.EC2_IP} ansible_user=ubuntu ansible_ssh_common_args='-o StrictHostKeyCheck
         }
         steps {
             sshagent(['my-agent']) {
-                sh '''
+                sh 
                     ansible-playbook \
                     -i inventory.ini \
                     install_docker.yml
-                '''
+                
             }
         }
     }
