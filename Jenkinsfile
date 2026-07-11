@@ -1,7 +1,5 @@
 pipeline {
 agent { label 'my-agent' }
-
-```
 parameters {
     choice(
         name: 'TF_ACTION',
@@ -189,6 +187,5 @@ post {
         cleanWs()
     }
 }
-```
 
 }
