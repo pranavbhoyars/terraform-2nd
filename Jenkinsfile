@@ -1,5 +1,7 @@
 pipeline {
 agent { label 'my-agent' }
+
+```
 parameters {
     choice(
         name: 'TF_ACTION',
@@ -78,8 +80,8 @@ stages {
                     returnStdout: true
                 ).trim()
 
-                echo "EC2 IP: ${EC2_IP}"
-                echo "ECR Repo: ${ECR_REPO}"
+                echo "EC2 IP: ${env.EC2_IP}"
+                echo "ECR Repo: ${env.ECR_REPO}"
             }
         }
     }
@@ -90,14 +92,21 @@ stages {
         }
         steps {
             script {
-                writeFile file: 'inventory.ini', text: """
+
+                writeFile(
+                    file: 'inventory.ini',
+                    text: """[web]
 ```
 
-[web]
-${EC2_IP} ansible_user=ubuntu
+${env.EC2_IP} ansible_user=ubuntu ansible_ssh_common_args='-o StrictHostKeyChecking=no'
 """
+)
 
-                sh 'cat inventory.ini'
+```
+                sh '''
+                    echo "===== INVENTORY ====="
+                    cat inventory.ini
+                '''
             }
         }
     }
@@ -107,8 +116,12 @@ ${EC2_IP} ansible_user=ubuntu
             expression { params.TF_ACTION == 'APPLY' }
         }
         steps {
-            sshagent(['my-agent']) {
-                sh 'ansible all -i inventory.ini -m ping'
+            sshagent(['agent-access']) {
+                sh '''
+                    ansible all \
+                    -i inventory.ini \
+                    -m ping
+                '''
             }
         }
     }
@@ -119,7 +132,11 @@ ${EC2_IP} ansible_user=ubuntu
         }
         steps {
             sshagent(['agent-access']) {
-                sh 'ansible-playbook -i inventory.ini install_docker.yml'
+                sh '''
+                    ansible-playbook \
+                    -i inventory.ini \
+                    install_docker.yml
+                '''
             }
         }
     }
@@ -131,7 +148,7 @@ ${EC2_IP} ansible_user=ubuntu
         steps {
             sh """
                 docker build -t nginx-app .
-                docker tag nginx-app:latest ${ECR_REPO}:latest
+                docker tag nginx-app:latest ${env.ECR_REPO}:latest
             """
         }
     }
@@ -146,7 +163,7 @@ ${EC2_IP} ansible_user=ubuntu
                 --region ${AWS_DEFAULT_REGION} \
                 | docker login \
                 --username AWS \
-                --password-stdin ${ECR_REPO}
+                --password-stdin ${env.ECR_REPO}
             """
         }
     }
@@ -156,7 +173,9 @@ ${EC2_IP} ansible_user=ubuntu
             expression { params.TF_ACTION == 'APPLY' }
         }
         steps {
-            sh 'docker push ${ECR_REPO}:latest'
+            sh """
+                docker push ${env.ECR_REPO}:latest
+            """
         }
     }
 
@@ -170,7 +189,7 @@ ${EC2_IP} ansible_user=ubuntu
                     ansible-playbook \
                     -i inventory.ini \
                     deploy_nginx.yml \
-                    -e ecr_repo=${ECR_REPO} \
+                    -e ecr_repo=${env.ECR_REPO} \
                     -e aws_region=${AWS_DEFAULT_REGION}
                 """
             }
@@ -196,7 +215,6 @@ post {
     failure {
         script {
             if (params.TF_ACTION == 'APPLY') {
-
                 echo 'Pipeline failed. Destroying infrastructure...'
 
                 sh '''
@@ -210,6 +228,6 @@ post {
         echo 'Pipeline finished.'
     }
 }
-
+```
 
 }
