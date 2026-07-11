@@ -115,7 +115,7 @@ ${env.EC2_IP} ansible_user=ubuntu ansible_ssh_common_args='-o StrictHostKeyCheck
             expression { params.TF_ACTION == 'APPLY' }
         }
         steps {
-            sshagent(['agent-access']) {
+            sshagent(['my-agent']) {
                 sh '''
                     ansible all \
                     -i inventory.ini \
