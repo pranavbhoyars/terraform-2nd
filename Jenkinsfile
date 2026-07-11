@@ -1,6 +1,5 @@
 pipeline {
 agent { label 'my-agent' }
-
 parameters {
     choice(
         name: 'TF_ACTION',
@@ -98,7 +97,6 @@ stages {
 ${EC2_IP} ansible_user=ubuntu
 """
 
-```
                 sh 'cat inventory.ini'
             }
         }
