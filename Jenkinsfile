@@ -86,46 +86,7 @@ stages {
         }
     }
 
-    stage('Create Inventory') {
-        when {
-            expression { params.TF_ACTION == 'APPLY' }
-        }
-        steps {
-            script {
-
-                writeFile(
-                    file: 'inventory.ini',
-                    text: """[web]
-```
-
-${env.EC2_IP} ansible_user=ubuntu ansible_ssh_common_args='-o StrictHostKeyChecking=no'
-"""
-)
-
-
-                sh '''
-                    echo "===== INVENTORY ====="
-                    cat inventory.ini
-                '''
-            }
-        }
-    }
-
-    stage('Test SSH Connectivity') {
-        when {
-            expression { params.TF_ACTION == 'APPLY' }
-        }
-        steps {
-            sshagent(['agent-access']) {
-                sh '''
-                    ansible all \
-                    -i inventory.ini \
-                    -m ping
-                '''
-            }
-        }
-    }
-
+    
     stage('Install Docker') {
         when {
             expression { params.TF_ACTION == 'APPLY' }
