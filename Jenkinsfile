@@ -102,6 +102,7 @@ ${env.EC2_IP} ansible_user=ubuntu ansible_ssh_common_args='-o StrictHostKeyCheck
 """
 )
 
+```
                 sh '''
                     echo "===== INVENTORY ====="
                     cat inventory.ini
@@ -110,19 +111,18 @@ ${env.EC2_IP} ansible_user=ubuntu ansible_ssh_common_args='-o StrictHostKeyCheck
         }
     }
 
-  
-
+   
     stage('Install Docker') {
         when {
             expression { params.TF_ACTION == 'APPLY' }
         }
         steps {
-            sshagent(['my-agent']) {
-                sh 
+            sshagent(['agent-access']) {
+                sh '''
                     ansible-playbook \
                     -i inventory.ini \
                     install_docker.yml
-                
+                '''
             }
         }
     }
