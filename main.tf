@@ -3,7 +3,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      
     }
   }
   # It is highly recommended to configure a remote S3 backend here for shared state
