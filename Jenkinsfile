@@ -102,7 +102,7 @@ ${env.EC2_IP} ansible_user=ubuntu ansible_ssh_common_args='-o StrictHostKeyCheck
 """
 )
 
-```
+
                 sh '''
                     echo "===== INVENTORY ====="
                     cat inventory.ini
