@@ -87,10 +87,10 @@ stages {
             }
         }
         steps {
-            sh '''
+            sh """
                 docker build -t nginx-app .
                 docker tag nginx-app:latest ${ECR_REPO}:latest
-            '''
+            """
         }
     }
 
@@ -101,9 +101,9 @@ stages {
             }
         }
         steps {
-            sh '''
+            sh """
                 aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}
-            '''
+            """
         }
     }
 
@@ -114,9 +114,9 @@ stages {
             }
         }
         steps {
-            sh '''
+            sh """
                 docker push ${ECR_REPO}:latest
-            '''
+            """
         }
     }
 
@@ -140,9 +140,7 @@ stages {
         }
         steps {
             sshagent(['agent-access']) {
-                sh '''
-                    ansible-playbook -i aws_ec2.yml install_docker.yml
-                '''
+                sh 'ansible-playbook -i aws_ec2.yml install_docker.yml'
             }
         }
     }
