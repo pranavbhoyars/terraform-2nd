@@ -1,10 +1,11 @@
 pipeline {
 agent { label 'my-agent' }
+
 parameters {
     choice(
         name: 'TF_ACTION',
         choices: ['APPLY', 'DESTROY'],
-        description: 'Select Terraform action'
+        description: 'Select Terraform Action'
     )
 }
 
@@ -22,12 +23,18 @@ stages {
     }
 
     stage('Terraform Init') {
+        when {
+            expression { params.TF_ACTION == 'APPLY' }
+        }
         steps {
             sh 'terraform init'
         }
     }
 
     stage('Terraform Validate') {
+        when {
+            expression { params.TF_ACTION == 'APPLY' }
+        }
         steps {
             sh 'terraform validate'
         }
@@ -35,9 +42,7 @@ stages {
 
     stage('Terraform Plan') {
         when {
-            expression {
-                params.TF_ACTION == 'APPLY'
-            }
+            expression { params.TF_ACTION == 'APPLY' }
         }
         steps {
             sh 'terraform plan -out=tfplan'
@@ -46,9 +51,7 @@ stages {
 
     stage('Terraform Apply') {
         when {
-            expression {
-                params.TF_ACTION == 'APPLY'
-            }
+            expression { params.TF_ACTION == 'APPLY' }
         }
         steps {
             sh 'terraform apply -auto-approve tfplan'
@@ -61,27 +64,71 @@ stages {
 
     stage('Get Terraform Outputs') {
         when {
-            expression {
-                params.TF_ACTION == 'APPLY'
-            }
+            expression { params.TF_ACTION == 'APPLY' }
         }
         steps {
             script {
+
+                env.EC2_IP = sh(
+                    script: 'terraform output -raw ec2_global_public_ip',
+                    returnStdout: true
+                ).trim()
+
                 env.ECR_REPO = sh(
                     script: 'terraform output -raw ecr_repository_url',
                     returnStdout: true
                 ).trim()
 
-                echo "ECR Repository: ${ECR_REPO}"
+                echo "EC2 IP: ${EC2_IP}"
+                echo "ECR Repo: ${ECR_REPO}"
+            }
+        }
+    }
+
+    stage('Create Inventory') {
+        when {
+            expression { params.TF_ACTION == 'APPLY' }
+        }
+        steps {
+            script {
+                writeFile file: 'inventory.ini', text: """
+```
+
+[web]
+${EC2_IP} ansible_user=ubuntu
+"""
+
+```
+                sh 'cat inventory.ini'
+            }
+        }
+    }
+
+    stage('Test SSH Connectivity') {
+        when {
+            expression { params.TF_ACTION == 'APPLY' }
+        }
+        steps {
+            sshagent(['agent-access']) {
+                sh 'ansible all -i inventory.ini -m ping'
+            }
+        }
+    }
+
+    stage('Install Docker') {
+        when {
+            expression { params.TF_ACTION == 'APPLY' }
+        }
+        steps {
+            sshagent(['agent-access']) {
+                sh 'ansible-playbook -i inventory.ini install_docker.yml'
             }
         }
     }
 
     stage('Build Docker Image') {
         when {
-            expression {
-                params.TF_ACTION == 'APPLY'
-            }
+            expression { params.TF_ACTION == 'APPLY' }
         }
         steps {
             sh """
@@ -93,9 +140,7 @@ stages {
 
     stage('Login To ECR') {
         when {
-            expression {
-                params.TF_ACTION == 'APPLY'
-            }
+            expression { params.TF_ACTION == 'APPLY' }
         }
         steps {
             sh """
@@ -108,43 +153,24 @@ stages {
         }
     }
 
-    stage('Push Docker Image') {
+    stage('Push Image To ECR') {
         when {
-            expression {
-                params.TF_ACTION == 'APPLY'
-            }
+            expression { params.TF_ACTION == 'APPLY' }
         }
         steps {
-            sh """
-                docker push ${ECR_REPO}:latest
-            """
+            sh 'docker push ${ECR_REPO}:latest'
         }
     }
 
-    stage('Install Docker Using Ansible') {
+    stage('Deploy Container') {
         when {
-            expression {
-                params.TF_ACTION == 'APPLY'
-            }
-        }
-        steps {
-            sshagent(['agent-access']) {
-                sh 'ansible-playbook -i aws_ec2.yml install_docker.yml'
-            }
-        }
-    }
-
-    stage('Deploy Nginx Container') {
-        when {
-            expression {
-                params.TF_ACTION == 'APPLY'
-            }
+            expression { params.TF_ACTION == 'APPLY' }
         }
         steps {
             sshagent(['agent-access']) {
                 sh """
                     ansible-playbook \
-                    -i aws_ec2.yml \
+                    -i inventory.ini \
                     deploy_nginx.yml \
                     -e ecr_repo=${ECR_REPO} \
                     -e aws_region=${AWS_DEFAULT_REGION}
@@ -155,9 +181,7 @@ stages {
 
     stage('Terraform Destroy') {
         when {
-            expression {
-                params.TF_ACTION == 'DESTROY'
-            }
+            expression { params.TF_ACTION == 'DESTROY' }
         }
         steps {
             sh 'terraform destroy -auto-approve'
@@ -173,7 +197,6 @@ post {
 
     failure {
         script {
-
             if (params.TF_ACTION == 'APPLY') {
 
                 echo 'Pipeline failed. Destroying infrastructure...'
