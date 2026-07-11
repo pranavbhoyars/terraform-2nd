@@ -1,7 +1,7 @@
 pipeline {
 agent { label 'my-agent' }
 
-```
+
 parameters {
     choice(
         name: 'TF_ACTION',
@@ -228,6 +228,6 @@ post {
         echo 'Pipeline finished.'
     }
 }
-```
+
 
 }
