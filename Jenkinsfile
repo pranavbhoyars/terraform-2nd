@@ -10,6 +10,7 @@ parameters {
 
 environment {
     AWS_DEFAULT_REGION = 'ap-southeast-2'
+    TF_CREATED = 'false'
 }
 
 stages {
@@ -17,12 +18,6 @@ stages {
     stage('Checkout') {
         steps {
             checkout scm
-        }
-    }
-
-    stage('Terraform Format Check') {
-        steps {
-            sh 'terraform fmt -recursive'
         }
     }
 
@@ -37,17 +32,6 @@ stages {
             sh 'terraform validate'
         }
     }
-    stage('Debug') {
-    steps {
-        sh '''
-            whoami
-            pwd
-            env | grep AWS || true
-            ls -la ~/.aws || true
-            aws sts get-caller-identity || true
-        '''
-    }
-}
 
     stage('Terraform Plan') {
         when {
@@ -68,6 +52,10 @@ stages {
         }
         steps {
             sh 'terraform apply -auto-approve tfplan'
+
+            script {
+                env.TF_CREATED = 'true'
+            }
         }
     }
 
@@ -84,7 +72,7 @@ stages {
                     returnStdout: true
                 ).trim()
 
-                echo "ECR Repository: ${env.ECR_REPO}"
+                echo "ECR Repository: ${ECR_REPO}"
             }
         }
     }
@@ -111,7 +99,11 @@ stages {
         }
         steps {
             sh """
-                aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}
+                aws ecr get-login-password \
+                --region ${AWS_DEFAULT_REGION} \
+                | docker login \
+                --username AWS \
+                --password-stdin ${ECR_REPO}
             """
         }
     }
@@ -126,18 +118,6 @@ stages {
             sh """
                 docker push ${ECR_REPO}:latest
             """
-        }
-    }
-
-    stage('Wait For EC2 Boot') {
-        when {
-            expression {
-                params.TF_ACTION == 'APPLY'
-            }
-        }
-        steps {
-            echo 'Waiting for EC2 to boot...'
-            sleep(time: 60, unit: 'SECONDS')
         }
     }
 
@@ -186,17 +166,29 @@ stages {
 }
 
 post {
+
     success {
         echo 'Pipeline completed successfully.'
     }
 
     failure {
-        echo 'Pipeline failed.'
+        script {
+
+            if (params.TF_ACTION == 'APPLY') {
+
+                echo 'Pipeline failed. Destroying infrastructure...'
+
+                sh '''
+                    terraform destroy -auto-approve || true
+                '''
+            }
+        }
     }
 
     always {
-        cleanWs()
+        echo 'Pipeline finished.'
     }
 }
+
 
 }
